@@ -40,3 +40,23 @@ export const UpdateUserToken = mutation({
         })
     }
 })
+
+// Nueva mutación para actualizar la suscripción del usuario
+export const updateUserSubscription = mutation({
+    args: {
+        id: v.id('users'),
+        subscriptionId: v.string(),
+        credits: v.number()
+    },
+    handler: async (ctx, args) => {
+        console.log(`Actualizando suscripción para usuario ${args.id}: ${args.subscriptionId}, créditos: ${args.credits}`);
+        
+        // Actualiza los campos de suscripción
+        await ctx.db.patch(args.id, {
+            subscriptionId: args.subscriptionId,
+            credits: args.credits
+        });
+        
+        return { success: true };
+    }
+});
