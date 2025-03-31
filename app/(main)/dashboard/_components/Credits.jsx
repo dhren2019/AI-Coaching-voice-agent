@@ -149,7 +149,7 @@ function Credits() {
 
                            {/* Disclaimer text */}
                            <p className="text-s text-gray-800 mt-3 text-center italic">
-                            Activamos tu cuenta de forma manual, te notificamos por email cuando tu cuenta está activa.
+                            Activamos tu cuenta de forma manual, te notificaremos por email cuando tu cuenta esté activa.
                         </p>
                         
                         {/* Estilos CSS para la animación */}
