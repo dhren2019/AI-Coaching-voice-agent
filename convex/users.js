@@ -60,3 +60,4 @@ export const updateUserSubscription = mutation({
         return { success: true };
     }
 });
+

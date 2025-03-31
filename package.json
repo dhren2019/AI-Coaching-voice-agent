@@ -21,6 +21,7 @@
     "clsx": "^2.1.1",
     "convex": "^1.21.0",
     "elevenlabs": "^1.54.0",
+    "graphviz": "^0.0.9",
     "lucide-react": "^0.479.0",
     "mic": "^2.1.2",
     "moment": "^2.30.1",
