@@ -147,3 +147,20 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes shine-border {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-shine-border {
+  background-size: 200% 200%;
+  animation: shine-border 3s ease infinite;
+}
