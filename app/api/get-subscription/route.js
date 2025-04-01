@@ -44,8 +44,8 @@ export async function POST(req) {
         },
       ],
       mode: 'subscription',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://ai-coaching-voice-agent-orcin.vercel.app'}/dashboard`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://ai-coaching-voice-agent-orcin.vercel.app'}/dashboard`,
       metadata: {
         customerEmail: userEmail,
       },
