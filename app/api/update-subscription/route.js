@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStripeInstance } from "@/lib/stripe-client";
 import { api } from "@/convex/_generated/api"; // Asegúrate de que este es el archivo correcto
-import { useMutation } from 'convex/react';
 
 const processedSessions = new Set();
 
@@ -48,7 +47,7 @@ export async function POST(req) {
       if (subscriptionId) {
         processedSessions.add(sessionId);
 
-        // Actualizar Convex con el subscriptionId
+        // Actualizar Convex con el subscriptionId de manera directa (sin hooks)
         await api.users.updateUserSubscription({
           userId,
           subscriptionId,  // Guardar el subscriptionId
