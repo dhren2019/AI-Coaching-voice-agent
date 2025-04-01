@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStripeInstance } from "@/lib/stripe-client";
-import { api } from "@/convex/_generated/api"; // Asegúrate de que este es el archivo correcto
+import { api } from "@/convex/_generated/api"; // Mutaciones de Convex
 
 const processedSessions = new Set();
 
