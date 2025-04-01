@@ -1,6 +1,4 @@
-
 "use client";
-// PaymentSuccessHandler.jsx
 import { useSearchParams } from 'next/navigation';
 import { useContext, useEffect, useState } from 'react';
 import { UserContext } from '@/app/_context/UserContext';
@@ -17,9 +15,8 @@ export default function PaymentSuccessHandler() {
   useEffect(() => {
     if (success === 'true' && !checked) {
       // Aquí puedes agregar un control para evitar la redirección repetitiva
-      // Ejemplo de llamada a Convex para actualizar la suscripción
       api.users.updateUserSubscription({
-        sessionId,
+        sessionId,  // Necesitamos asegurar que el sessionId esté presente
         status: 'active',
       }).then(() => {
         setChecked(true);

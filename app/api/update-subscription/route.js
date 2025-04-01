@@ -49,8 +49,8 @@ export async function POST(req) {
 
         // Actualizar Convex con el subscriptionId de manera directa (sin hooks)
         await api.users.updateUserSubscription({
-          userId,
-          subscriptionId,  // Guardar el subscriptionId
+          userId,           // El ID del usuario
+          subscriptionId,   // El subscriptionId que obtuviste de la sesión de Stripe
         });
 
         // Limpiar caché periódicamente para evitar memory leak
