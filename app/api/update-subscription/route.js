@@ -1,8 +1,8 @@
-// /app/api/update-subscription/route.js
 import { NextResponse } from "next/server";
 import { getStripeInstance } from "@/lib/stripe-client";
+import { api } from "@/convex/_generated/api"; // Asegúrate de que este es el archivo correcto
+import { useMutation } from 'convex/react';
 
-// Conjunto para rastrear sesiones procesadas y evitar duplicados
 const processedSessions = new Set();
 
 export async function POST(req) {
@@ -35,28 +35,24 @@ export async function POST(req) {
     
     // Verificar si la sesión fue pagada exitosamente
     if (session.payment_status === 'paid' && session.status === 'complete') {
-      // Intentar obtener ID de suscripción
       let subscriptionId = null;
       
-      // Opción 1: Usar ID de suscripción expandido
       if (session.subscription) {
         subscriptionId = session.subscription.id;
         console.log('Usando subscription.id:', subscriptionId);
-      } 
-      // Opción 2: Usar ID de suscripción directo
-      else if (session.subscription) {
-        subscriptionId = session.subscription;
-        console.log('Usando subscription string:', subscriptionId);
-      }
-      // Opción 3: Usar payment_intent como fallback
-      else if (session.payment_intent) {
+      } else if (session.payment_intent) {
         subscriptionId = session.payment_intent;
         console.log('Usando payment_intent como fallback:', subscriptionId);
       }
       
       if (subscriptionId) {
-        // Marcar sesión como procesada
         processedSessions.add(sessionId);
+
+        // Actualizar Convex con el subscriptionId
+        await api.users.updateUserSubscription({
+          userId,
+          subscriptionId,  // Guardar el subscriptionId
+        });
 
         // Limpiar caché periódicamente para evitar memory leak
         if (processedSessions.size > 100) {

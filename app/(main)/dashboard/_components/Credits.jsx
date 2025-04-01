@@ -12,23 +12,19 @@ function Credits() {
     const { userData } = useContext(UserContext);
     const user = useUser();
     const [loading, setLoading] = useState(false);
-    const [displayedTokens, setDisplayedTokens] = useState({ current: 0, max: 5000 });
-    const [progressValue, setProgressValue] = useState(0);
 
-    useEffect(() => {
-        if (userData) {
-            const maxTokens = userData.subscriptionId ? 50000 : 5000;
-            setDisplayedTokens({
-                current: userData.credits || 0,
-                max: maxTokens
-            });
-            
-            // Calculate tokens used percentage (0-100)
-            const tokensUsed = maxTokens - (userData.credits || 0);
-            const percentage = (tokensUsed / maxTokens) * 100;
-            setProgressValue(Math.min(Math.max(percentage, 0), 100));
-        }
-    }, [userData]);
+    // El componente Progress en shadcn/ui muestra la barra llena cuando el valor es 100
+    // y vacía cuando el valor es 0. Necesitamos INVERTIR esta lógica para nuestro caso.
+    const calculateProgress = () => {
+        if (!userData?.credits) return 0;
+        
+        const maxTokens = userData?.subscriptionId ? 50000 : 5000;
+        const availableTokens = userData.credits;
+        
+        // La clave está aquí: invertimos la barra de progreso
+        // Un valor alto (userData.credits cercano a maxTokens) debería dar un progreso bajo (barra vacía)
+        return 100 - ((availableTokens / maxTokens) * 100);
+    }
 
     const handleUpgrade = async () => {
         try {
@@ -72,8 +68,19 @@ function Credits() {
     };
 
     const formatNumber = (num) => {
-        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return num?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") || "0";
     };
+
+    // Para depuración
+    useEffect(() => {
+        if (userData) {
+            console.log('Token usage info:', {
+                credits: userData.credits,
+                maxTokens: userData.subscriptionId ? 50000 : 5000,
+                progressBarValue: calculateProgress()
+            });
+        }
+    }, [userData]);
 
     return (
         <div>
@@ -89,8 +96,8 @@ function Credits() {
             <hr className='my-3' />
             <div>
                 <h2 className='font-bold'>Token Usage</h2>
-                <h2>{formatNumber(displayedTokens.current)}/{formatNumber(displayedTokens.max)}</h2>
-                <Progress value={progressValue} className='my-3' />
+                <h2>{formatNumber(userData?.credits)}/{userData?.subscriptionId ? '50,000' : '5,000'}</h2>
+                <Progress value={calculateProgress()} className='my-3' />
 
                 <div className='flex justify-between items-center mt-3'>
                     <h2 className='font-bold'>Current Plan</h2>
@@ -147,8 +154,8 @@ function Credits() {
                             </div>
                         </div>
 
-                           {/* Disclaimer text */}
-                           <p className="text-s text-gray-800 mt-3 text-center italic">
+                        {/* Disclaimer text */}
+                        <p className="text-s text-gray-800 mt-3 text-center italic">
                             Activamos tu cuenta de forma manual, te notificaremos por email cuando tu cuenta esté activa.
                         </p>
                         
