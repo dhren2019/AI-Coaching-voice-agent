@@ -1,3 +1,5 @@
+
+"use client";
 // PaymentSuccessHandler.jsx
 import { useSearchParams } from 'next/navigation';
 import { useContext, useEffect, useState } from 'react';
