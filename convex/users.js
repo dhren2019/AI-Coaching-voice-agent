@@ -41,23 +41,29 @@ export const UpdateUserToken = mutation({
     }
 })
 
-// Nueva mutación para actualizar la suscripción del usuario
-export const updateUserSubscription = mutation({
+export const updateUserByStripeCustomerId = mutation({
     args: {
-        id: v.id('users'),
-        subscriptionId: v.string(),
-        credits: v.number()
+      stripeCustomerId: v.string(),
+      subscriptionId: v.string(),
     },
     handler: async (ctx, args) => {
-        console.log(`Actualizando suscripción para usuario ${args.id}: ${args.subscriptionId}, créditos: ${args.credits}`);
-        
-        // Actualiza los campos de suscripción
-        await ctx.db.patch(args.id, {
-            subscriptionId: args.subscriptionId,
-            credits: args.credits
-        });
-        
-        return { success: true };
-    }
-});
+      const users = await ctx.db
+        .query("users")
+        .filter(q => q.eq(q.field("stripeCustomerId"), args.stripeCustomerId))
+        .collect();
+  
+      if (users.length === 0) {
+        console.error("❌ No se encontró usuario con ese Stripe customer ID");
+        return;
+      }
+  
+      const user = users[0];
+  
+      await ctx.db.patch(user._id, {
+        subscriptionId: args.subscriptionId,
+      });
+  
+      console.log("✅ Usuario actualizado con subscriptionId:", args.subscriptionId);
+    },
+  });
 
