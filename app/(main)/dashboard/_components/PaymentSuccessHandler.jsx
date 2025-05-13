@@ -1,6 +1,6 @@
 "use client";
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { UserContext } from '@/app/_context/UserContext';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -16,6 +16,9 @@ export default function PaymentSuccessHandler() {
   // Usar useRef para rastrear procesamiento
   const processingRef = useRef(false);
   const processedSessionsRef = useRef(new Set());
+  // Añadir estado para rastrear intentos
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 3;
   
   const updateUserSubscription = useMutation(api.users.updateUserSubscription);
 
@@ -25,11 +28,27 @@ export default function PaymentSuccessHandler() {
       if (
         success !== 'true' || 
         !sessionId || 
-        !userData?._id || 
         processingRef.current || 
         processedSessionsRef.current.has(sessionId)
       ) {
         return;
+      }
+
+      // Verificar si tenemos userData y su ID
+      if (!userData || !userData._id) {
+        // Si no tenemos userData pero no hemos excedido los reintentos, programar otro intento
+        if (retryCount < maxRetries) {
+          console.log(`Esperando userData, intento ${retryCount + 1} de ${maxRetries}...`);
+          setRetryCount(prev => prev + 1);
+          setTimeout(() => {
+            processingRef.current = false; // Permitir otro intento
+          }, 1000); // Esperar 1 segundo antes de reintentar
+          return;
+        } else {
+          console.error('No se pudo obtener userData después de múltiples intentos');
+          toast.error('Error al verificar la suscripción. Por favor, contacta a soporte.');
+          return;
+        }
       }
 
       // Bloquear procesamiento
@@ -37,6 +56,8 @@ export default function PaymentSuccessHandler() {
       processedSessionsRef.current.add(sessionId);
 
       try {
+        console.log(`Verificando pago para sesión ${sessionId} y usuario ${userData._id}`);
+        
         const response = await fetch('/api/update-subscription', {
           method: 'POST',
           headers: {
@@ -48,29 +69,41 @@ export default function PaymentSuccessHandler() {
           }),
         });
 
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
+        }
+
         const data = await response.json();
+        console.log('Respuesta de update-subscription:', data);
         
         if (data.success && data.subscriptionId) {
           // Actualizar suscripción en Convex
-          await updateUserSubscription({
-            id: userData._id,
-            subscriptionId: data.subscriptionId,
-            credits: 50000
-          });
-          
-          // Actualizar contexto de usuario
-          setUserData(prev => ({
-            ...prev,
-            subscriptionId: data.subscriptionId,
-            credits: 50000
-          }));
-          
-          // Mostrar mensaje de éxito
-          toast.success('¡Suscripción activada! Ahora tienes acceso al Plan Pro con 50,000 tokens.');
+          try {
+            await updateUserSubscription({
+              id: userData._id,
+              subscriptionId: data.subscriptionId,
+              credits: 50000
+            });
+            
+            // Actualizar contexto de usuario
+            setUserData(prev => ({
+              ...prev,
+              subscriptionId: data.subscriptionId,
+              credits: 50000
+            }));
+            
+            // Mostrar mensaje de éxito
+            toast.success('¡Suscripción activada! Ahora tienes acceso al Plan Pro con 50,000 tokens.');
+            console.log('Suscripción actualizada exitosamente:', data.subscriptionId);
 
-          // Redirigir para prevenir bucle
-          router.replace('/dashboard');
+            // Redirigir para prevenir bucle
+            router.replace('/dashboard');
+          } catch (convexError) {
+            console.error('Error al actualizar en Convex:', convexError);
+            toast.error('Error al actualizar la suscripción en la base de datos');
+          }
         } else {
+          console.error('Respuesta de API sin éxito:', data);
           toast.error('No se pudo verificar la suscripción');
         }
       } catch (error) {
@@ -83,7 +116,7 @@ export default function PaymentSuccessHandler() {
     };
 
     verifyPayment();
-  }, [success, sessionId, userData, updateUserSubscription, setUserData, router]);
+  }, [success, sessionId, userData, updateUserSubscription, setUserData, router, retryCount]);
 
   return null;
 }
