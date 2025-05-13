@@ -147,3 +147,46 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes shine-border {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-shine-border {
+  background-size: 200% 200%;
+  animation: shine-border 3s ease infinite;
+}
+
+/* Añade estos estilos a tu globals.css para mejorar la animación del botón */
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.telegram-float-button {
+  animation: pulse 2s infinite;
+}
+
+.telegram-icon {
+  transition: transform 0.3s ease;
+}
+
+.telegram-float-button:hover .telegram-icon {
+  transform: scale(1.1);
+}

@@ -4,6 +4,7 @@ import { stackServerApp } from "../stack";
 import "./globals.css";
 import Provider from "./provider";
 import { Toaster } from "@/components/ui/sonner";
+import TelegramFloatButton from '@/app/_components/TelegramFloatButton';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,6 +29,8 @@ export default function RootLayout({ children }) {
       ><StackProvider app={stackServerApp}><StackTheme>
         <Provider>
           {children}
+
+          <TelegramFloatButton telegramBotUsername="Dhren_bot" />
           <Toaster />
         </Provider>
       </StackTheme></StackProvider></body>
