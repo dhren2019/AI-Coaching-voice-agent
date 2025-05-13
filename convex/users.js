@@ -41,7 +41,7 @@ export const UpdateUserToken = mutation({
     }
 })
 
-// Nueva mutación para actualizar la suscripción del usuario
+// Mutación para actualizar la suscripción del usuario
 export const updateUserSubscription = mutation({
     args: {
         id: v.id('users'),
@@ -51,12 +51,37 @@ export const updateUserSubscription = mutation({
     handler: async (ctx, args) => {
         console.log(`Actualizando suscripción para usuario ${args.id}: ${args.subscriptionId}, créditos: ${args.credits}`);
         
-        // Actualiza los campos de suscripción
-        await ctx.db.patch(args.id, {
-            subscriptionId: args.subscriptionId,
-            credits: args.credits
-        });
-        
-        return { success: true };
+        try {
+            // Verificar si el usuario existe
+            const user = await ctx.db.get(args.id);
+            if (!user) {
+                console.error(`Error: Usuario con ID ${args.id} no encontrado`);
+                return { 
+                    success: false, 
+                    error: 'Usuario no encontrado' 
+                };
+            }
+            
+            console.log(`Usuario encontrado: ${user.name}, email: ${user.email}`);
+            
+            // Actualiza los campos de suscripción
+            await ctx.db.patch(args.id, {
+                subscriptionId: args.subscriptionId,
+                credits: args.credits
+            });
+            
+            console.log(`Suscripción actualizada exitosamente para ${user.name}`);
+            
+            return { 
+                success: true,
+                message: 'Suscripción actualizada correctamente'
+            };
+        } catch (error) {
+            console.error(`Error al actualizar suscripción: ${error.message}`);
+            return { 
+                success: false, 
+                error: error.message || 'Error desconocido al actualizar suscripción'
+            };
+        }
     }
 });
