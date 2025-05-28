@@ -8,6 +8,20 @@ import React, { useContext, useState, useEffect } from 'react'
 import { toast } from 'sonner';
 import { DotPattern } from '@/components/magicui/dot-pattern';
 
+// Función de log del cliente
+const clientLog = (message, data = null) => {
+    const log = {
+        timestamp: new Date().toISOString(),
+        message,
+        data
+    };
+    console.log('Client Log:', log);
+    // Guardar en localStorage para debugging
+    const logs = JSON.parse(localStorage.getItem('paymentLogs') || '[]');
+    logs.push(log);
+    localStorage.setItem('paymentLogs', JSON.stringify(logs));
+};
+
 function Credits() {
     const { userData } = useContext(UserContext);
     const user = useUser();
@@ -29,14 +43,18 @@ function Credits() {
     const handleUpgrade = async () => {
         try {
             setLoading(true);
+            clientLog('Iniciando proceso de upgrade', { userEmail: user?.primaryEmail });
             
-            const response = await fetch('/api/get-subscription', {
+            const response = await fetch('/api/create-checkout-session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     userEmail: user?.primaryEmail,
+                    userId: userData?._id,
+                    successUrl: `${window.location.origin}/workflow?success=true&userId=${userData?._id}`,
+                    cancelUrl: `${window.location.origin}/dashboard?canceled=true`
                 }),
             });
 
@@ -45,24 +63,31 @@ function Credits() {
             }
 
             const data = await response.json();
+            clientLog('Respuesta del servidor recibida', { data });
             
             if (data.error) {
-                console.error('Error:', data.error);
-                toast.error('Error creating payment session');
+                clientLog('Error en la respuesta del servidor', { error: data.error });
+                toast.error('Error al crear la sesión de pago');
                 setLoading(false);
                 return;
             }
 
-            // Redirect to Stripe payment page
+            // Redirigir a Stripe Checkout
             if (data.url) {
+                clientLog('Redirigiendo a Stripe', { 
+                    checkoutUrl: data.url,
+                    sessionId: data.sessionId 
+                });
+                // Guardar el ID de la sesión en localStorage
+                localStorage.setItem('checkoutSessionId', data.sessionId);
                 window.location.href = data.url;
             } else {
-                throw new Error('No redirect URL received');
+                throw new Error('No se recibió la URL de redirección');
             }
             
         } catch (error) {
-            console.error('Error processing upgrade:', error);
-            toast.error('An error occurred. Please try again.');
+            clientLog('Error en el proceso de pago', { error: error.message });
+            toast.error('Ocurrió un error. Por favor intenta de nuevo.');
             setLoading(false);
         }
     };

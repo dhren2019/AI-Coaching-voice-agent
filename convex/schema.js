@@ -6,7 +6,8 @@ export default defineSchema({
         name: v.string(),
         email: v.string(),
         credits: v.number(),
-        subscriptionId: v.optional(v.string())
+        subscriptionId: v.optional(v.string()),
+        stripeCustomerId: v.optional(v.string())
     }),
 
     DiscussionRoom: defineTable({
