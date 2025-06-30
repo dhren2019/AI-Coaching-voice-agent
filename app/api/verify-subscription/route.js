@@ -80,7 +80,9 @@ export async function POST(req) {
                         status: subscription.status,
                         planType: 'pro',
                         credits: 50000,
-                        currentPeriodEnd: subscription.current_period_end
+                        currentPeriodEnd: subscription.current_period_end,
+                        paymentStatus: 'paid',
+                        priceId: subscription.items.data[0]?.price?.id || process.env.STRIPE_PRICE_ID_MONTHLY || ''
                     });
 
                     logger.info('Suscripción guardada en Convex', {

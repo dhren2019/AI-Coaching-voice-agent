@@ -10,7 +10,9 @@ export const saveSubscription = mutation({
         status: v.string(),
         planType: v.string(),
         credits: v.number(),
-        currentPeriodEnd: v.optional(v.number())
+        currentPeriodEnd: v.optional(v.number()),
+        paymentStatus: v.optional(v.string()),
+        priceId: v.optional(v.string())
     },
     handler: async (ctx, args) => {
         const { 
@@ -20,7 +22,9 @@ export const saveSubscription = mutation({
             status, 
             planType, 
             credits,
-            currentPeriodEnd 
+            currentPeriodEnd,
+            paymentStatus,
+            priceId
         } = args;
 
         console.log('🔄 Iniciando guardado/actualización de suscripción:', {
@@ -78,8 +82,8 @@ export const saveSubscription = mutation({
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
                 currentPeriodEnd: currentPeriodEnd || null,
-                paymentStatus: status === 'active' ? 'paid' : 'pending',
-                priceId: process.env.STRIPE_PRICE_ID_MONTHLY || ''
+                ...(paymentStatus && { paymentStatus }),
+                ...(priceId && { priceId })
             });
 
             // Actualizar también el usuario
@@ -486,7 +490,9 @@ export const handleSubscriptionCompleted = mutation({
                 status,
                 planType: 'pro',
                 credits: 50000,
-                currentPeriodEnd: undefined
+                currentPeriodEnd: undefined,
+                paymentStatus: status === 'active' ? 'paid' : 'pending',
+                priceId: process.env.STRIPE_PRICE_ID_MONTHLY || ''
             };
             
             // Llamar directamente a la función saveSubscription
