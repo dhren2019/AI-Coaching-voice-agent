@@ -40,10 +40,11 @@ function Feedback() {
             {discussionRoomList?.length == 0 && <h2 className='text-gray-400'>Your don't have any previous Feedback</h2>}
 
             <div className='mt-5'>
-                {discussionRoomList.map((item, index) => (item.coachingOption == 'Mock Interview' || item.coachingOption == 'Ques Ans Prep') &&
-                    (
-                        <BlurFade delay={0.25 * index} key={index} >
-                            <div key={index} className='border-b-[1px] pb-3 mb-4 group flex justify-between items-center cursor-pointer'>
+                {discussionRoomList
+                    .filter(item => item.coachingOption === 'Mock Interview' || item.coachingOption === 'Ques Ans Prep')
+                    .map((item, index) => (
+                        <BlurFade delay={0.25 * index} key={item._id || index} >
+                            <div className='border-b-[1px] pb-3 mb-4 group flex justify-between items-center cursor-pointer'>
                                 <div className='flex gap-7 items-center'>
                                     <Image src={GetAbstractImages(item.coachingOption)} alt='abstract'
                                         width={70} height={70} className='rounded-full h-[50px] w-[50px]' />

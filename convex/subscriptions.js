@@ -62,6 +62,27 @@ export const saveSubscription = mutation({
                     priceId: process.env.STRIPE_PRICE_ID_MONTHLY || ''
                 });
 
+                // Actualizar también el usuario con el nuevo subscriptionId
+                console.log('🔄 Actualizando usuario con nuevo subscriptionId:', {
+                    userId,
+                    subscriptionIdAnterior: existingSub.subscriptionId,
+                    subscriptionIdNuevo: subscriptionId,
+                    timestamp: new Date().toISOString()
+                });
+
+                await ctx.db.patch(userId, {
+                    subscriptionId,
+                    stripeCustomerId,
+                    credits,
+                    isMember: true
+                });
+
+                console.log('✅ Usuario actualizado con nuevo subscriptionId:', {
+                    userId,
+                    subscriptionId,
+                    timestamp: new Date().toISOString()
+                });
+
                 return existingSub._id;
             }
 
@@ -86,17 +107,32 @@ export const saveSubscription = mutation({
                 ...(priceId && { priceId })
             });
 
-            // Actualizar también el usuario
-            await ctx.db.patch(userId, {
-                subscriptionId,
-                stripeCustomerId,
-                credits
-            });
-
             console.log('✅ Suscripción guardada exitosamente:', {
                 subscriptionId,
                 userId,
                 dbId: newSubscriptionId,
+                timestamp: new Date().toISOString()
+            });
+
+            // Actualizar también el usuario con el subscriptionId
+            console.log('🔄 Actualizando usuario con subscriptionId:', {
+                userId,
+                subscriptionId,
+                stripeCustomerId,
+                credits,
+                timestamp: new Date().toISOString()
+            });
+
+            await ctx.db.patch(userId, {
+                subscriptionId,
+                stripeCustomerId,
+                credits,
+                isMember: true
+            });
+
+            console.log('✅ Usuario actualizado con subscriptionId:', {
+                userId,
+                subscriptionId,
                 timestamp: new Date().toISOString()
             });
 
@@ -167,7 +203,7 @@ export const cancelSubscription = mutation({
 
             // Actualizar el usuario a plan gratuito
             await ctx.db.patch(userId, {
-                subscriptionId: null,
+                subscriptionId: undefined,
                 credits: 5000 // Volver a créditos del plan gratuito
             });
 
@@ -235,7 +271,7 @@ export const savePaymentRecord = mutation({
                 status,
                 createdAt: Date.now(),
                 metadata: metadata || {},
-                subscriptionId: subscriptionId || null
+                subscriptionId: subscriptionId || undefined
             });
 
             console.log('✅ Registro de pago guardado:', {
@@ -393,7 +429,7 @@ export const updatePaymentRecord = mutation({
                 amount,
                 status,
                 createdAt: Date.now(),
-                subscriptionId: subscriptionId || null
+                subscriptionId: subscriptionId || undefined
             });
 
             // Si el pago falló, actualizar el estado del usuario

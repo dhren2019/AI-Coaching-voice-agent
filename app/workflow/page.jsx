@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CheckCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function WorkflowSuccess() {
@@ -19,6 +18,7 @@ export default function WorkflowSuccess() {
                 success,
                 userId,
                 sessionId: sessionId || 'No encontrado',
+                isLocalhost: window.location.hostname === 'localhost',
                 timestamp: new Date().toISOString()
             });
 
@@ -36,13 +36,50 @@ export default function WorkflowSuccess() {
                     return;
                 }
 
+                // 🆕 En desarrollo local, usar el simulador de pago directo automáticamente
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    console.log('🎭 Ejecutando simulador de pago directo para desarrollo local...');
+                    
+                    try {
+                        const simulatorResponse = await fetch('/api/simulate-payment', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                userId,
+                            }),
+                        });
+
+                        const simulatorResult = await simulatorResponse.json();
+                        console.log('🎭 Resultado del simulador de pago:', simulatorResult);
+
+                        if (simulatorResult.success) {
+                            console.log('✅ Simulador ejecutado exitosamente, suscripción actualizada');
+                            toast.success('¡Pago procesado exitosamente! Redirigiendo al dashboard...');
+                            
+                            // Limpiar localStorage y redirigir
+                            localStorage.removeItem('checkoutSessionId');
+                            setTimeout(() => {
+                                router.push('/dashboard');
+                            }, 2000);
+                            setIsProcessing(false);
+                            return;
+                        } else {
+                            console.log('⚠️ Simulador falló, continuando con verificación normal:', simulatorResult.error);
+                        }
+                    } catch (simulatorError) {
+                        console.log('⚠️ Error en simulador, continuando con verificación normal:', simulatorError.message);
+                    }
+                }
+
                 console.log('📤 Enviando solicitud de verificación:', {
                     sessionId,
                     userId,
                     timestamp: new Date().toISOString()
                 });
 
-                // Verificar el estado de la suscripción
+                // Verificar el estado de la suscripción (como antes)
                 const response = await fetch('/api/verify-subscription', {
                     method: 'POST',
                     headers: {
@@ -88,6 +125,26 @@ export default function WorkflowSuccess() {
                         sessionId: sessionId,
                         timestamp: new Date().toISOString()
                     });
+                    
+                    // Verificación adicional del estado del usuario
+                    try {
+                        const debugResponse = await fetch('/api/debug-user', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: data.userId })
+                        });
+                        
+                        if (debugResponse.ok) {
+                            const debugData = await debugResponse.json();
+                            console.log('🔍 Estado final del usuario verificado:', debugData);
+                            
+                            if (!debugData.debug.hasSubscriptionId) {
+                                console.warn('⚠️ ADVERTENCIA: Usuario actualizado pero subscriptionId no está presente');
+                            }
+                        }
+                    } catch (debugError) {
+                        console.log('ℹ️ No se pudo verificar el estado final del usuario:', debugError.message);
+                    }
                     
                     toast.success('¡Suscripción activada correctamente!');
                     
@@ -145,18 +202,20 @@ export default function WorkflowSuccess() {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-100 to-indigo-100">
             <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
                 {isProcessing ? (
-                    <>
-                        <Loader2 className="w-16 h-16 text-blue-500 mx-auto animate-spin mb-6" />
+                    <div>
+                        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
                         <h1 className="text-2xl font-bold text-gray-800 mb-4">
                             Procesando tu suscripción
                         </h1>
                         <p className="text-gray-600">
                             Por favor espera mientras verificamos tu pago...
                         </p>
-                    </>
+                    </div>
                 ) : (
-                    <>
-                        <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
+                    <div>
+                        <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <span className="text-white text-2xl">✓</span>
+                        </div>
                         <h1 className="text-2xl font-bold text-gray-800 mb-4">
                             ¡Suscripción Exitosa!
                         </h1>
@@ -167,7 +226,7 @@ export default function WorkflowSuccess() {
                         <p className="text-sm text-gray-500">
                             Serás redirigido al dashboard en unos segundos...
                         </p>
-                    </>
+                    </div>
                 )}
             </div>
         </div>

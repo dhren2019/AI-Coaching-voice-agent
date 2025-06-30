@@ -51,6 +51,11 @@ class Logger {
         this.log('WARNING', message, data).catch(console.error);
     }
 
+    // Alias para compatibilidad
+    warn(message, data = null) {
+        this.warning(message, data);
+    }
+
     debug(message, data = null) {
         if (process.env.NODE_ENV === 'development') {
             this.log('DEBUG', message, data).catch(console.error);

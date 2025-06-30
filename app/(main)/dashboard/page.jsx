@@ -3,6 +3,7 @@ import FeatureAssistants from './_components/FeatureAssistants'
 import History from './_components/History'
 import Feedback from './_components/Feedback'
 import PaymentSuccessHandler from './_components/PaymentSuccessHandler';
+import DebugInfo from './_components/DebugInfo';
 
 function Dashboard() {
     return (
@@ -13,6 +14,7 @@ function Dashboard() {
                 <History />
                 <Feedback />
             </div>
+            <DebugInfo />
         </div>
     )
 }

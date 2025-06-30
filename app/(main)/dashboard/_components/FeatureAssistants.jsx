@@ -5,17 +5,49 @@ import { CoachingOptions } from '@/services/Options';
 
 import { useUser } from '@stackframe/stack'
 import Image from 'next/image';
-import React, { useContext } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import UserInputDialog from './UserInputDialog';
 import ProfileDialog from './ProfileDialog';
 import { UserContext } from '@/app/_context/UserContext';
 
 function FeatureAssistants() {
     const user = useUser();
-    const { userData } = useContext(UserContext);
+    const { userData, isCreatingUser, isUserReady } = useContext(UserContext);
+    const [hasWaited, setHasWaited] = useState(false);
 
-    if (!userData?._id) {
-        window.location.reload();
+    useEffect(() => {
+        // Dar tiempo para que userData se cargue
+        const timer = setTimeout(() => {
+            setHasWaited(true);
+        }, 3000); // 3 segundos de espera
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        // Solo verificar después del período de espera y si no está creando usuario
+        if (hasWaited && !isCreatingUser && !userData?._id && user) {
+            console.log('🔄 UserData not found after waiting, reloading...', { 
+                userData, 
+                user: user?.primaryEmail,
+                isCreatingUser,
+                hasWaited
+            });
+            // En lugar de recargar, redirigir al login
+            window.location.href = '/';
+        }
+    }, [userData, user, isCreatingUser, hasWaited]);
+
+    // Mostrar loading mientras se cargan los datos
+    if (isCreatingUser || !hasWaited) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <span className="ml-2">
+                    {isCreatingUser ? 'Setting up your account...' : 'Loading...'}
+                </span>
+            </div>
+        );
     }
     return (
         <div>

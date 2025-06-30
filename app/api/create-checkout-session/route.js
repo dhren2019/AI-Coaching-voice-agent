@@ -109,7 +109,14 @@ export async function POST(req) {
     return NextResponse.json({
       url: session.url,
       sessionId: session.id, // Keep sending sessionId for potential client-side use
-      customerId: customer.id
+      customerId: customer.id,
+      // 🆕 Información adicional para desarrollo local
+      development: {
+        simulateWebhookUrl: process.env.NODE_ENV === 'development' ? 
+          `${baseUrl}/api/webhook-simulator` : null,
+        instructions: process.env.NODE_ENV === 'development' ? 
+          'En desarrollo local, el webhook se simulará automáticamente en /workflow' : null
+      }
     });
   } catch (error) {
     console.error('❌ Error detallado en create-checkout-session:', {

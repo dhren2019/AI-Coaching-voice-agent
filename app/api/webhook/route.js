@@ -220,6 +220,35 @@ async function handleCheckoutCompleted(session) {
             if (updateResult.success) {
                 console.log('✅ Usuario actualizado exitosamente (V2):', updateResult.user);
                 
+                // Verificación adicional del estado del usuario
+                try {
+                    if (updateResult.user._id) {
+                        // Verificar el estado final del usuario usando el nuevo endpoint
+                        const finalCheck = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/debug-user`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: updateResult.user._id })
+                        });
+                        
+                        if (finalCheck.ok) {
+                            const finalState = await finalCheck.json();
+                            console.log('🔍 Verificación final del usuario (V2):', {
+                                hasSubscriptionId: finalState.debug?.hasSubscriptionId,
+                                subscriptionIdValue: finalState.debug?.subscriptionIdValue,
+                                isValidSubscriptionId: finalState.debug?.isValidSubscriptionId,
+                                credits: finalState.user?.credits,
+                                isMember: finalState.user?.isMember
+                            });
+                            
+                            if (!finalState.debug?.hasSubscriptionId) {
+                                console.warn('⚠️ ADVERTENCIA (V2): Usuario actualizado pero subscriptionId no está presente en verificación final');
+                            }
+                        }
+                    }
+                } catch (verifyError) {
+                    console.log('ℹ️ No se pudo verificar el estado final del usuario (V2):', verifyError.message);
+                }
+                
                 // Guardar registro de pago solo si el usuario se actualizó correctamente
                 await savePaymentRecord({
                     sessionId: session.id,
@@ -272,23 +301,50 @@ async function updateUserWithSubscription({ subscriptionId, stripeCustomerId, cu
     });
     
     try {
-        // Estrategia 1: Buscar por stripeCustomerId
+        // Estrategia 1: Buscar por stripeCustomerId y usar saveSubscription
         console.log('🔍 Estrategia 1 (V2): Buscando por stripeCustomerId:', stripeCustomerId);
         
         try {
-            const result = await convex.mutation(api.users.updateUserSubscription, {
-                subscriptionId,
-                stripeCustomerId
-            });
+            // Buscar usuarios por stripeCustomerId
+            const usersByCustomer = await convex.query(api.users.getUserByEmail, { email: customerEmail });
             
-            console.log('✅ Estrategia 1 exitosa (V2) - Usuario encontrado por stripeCustomerId');
-            return { success: true, user: result, strategy: 'stripeCustomerId' };
+            if (usersByCustomer && usersByCustomer.length > 0) {
+                const user = usersByCustomer[0];
+                console.log('👤 Usuario encontrado por email para vincular con stripe:', {
+                    userId: user._id,
+                    email: user.email,
+                    currentSubscriptionId: user.subscriptionId || 'unset'
+                });
+                
+                // Usar la función saveSubscription que ya funciona correctamente
+                const savedSubscription = await convex.mutation(api.subscriptions.saveSubscription, {
+                    userId: user._id,
+                    subscriptionId,
+                    stripeCustomerId,
+                    status: 'active',
+                    planType: 'pro',
+                    credits: 50000,
+                    currentPeriodEnd: null,
+                    paymentStatus: 'paid',
+                    priceId: process.env.STRIPE_PRICE_ID_MONTHLY || ''
+                });
+                
+                console.log('✅ Estrategia 1 exitosa (V2) - Suscripción guardada via saveSubscription:', {
+                    subscriptionId,
+                    userId: user._id,
+                    savedId: savedSubscription
+                });
+                
+                return { success: true, user: user, strategy: 'saveSubscription_primary' };
+            } else {
+                console.warn('⚠️ No se encontró usuario con email:', customerEmail);
+            }
             
         } catch (error) {
             console.warn('⚠️ Estrategia 1 falló (V2):', error.message);
         }
 
-        // Estrategia 2: Buscar por email y actualizar stripeCustomerId
+        // Estrategia 2: Buscar por email y usar saveSubscription
         if (customerEmail) {
             console.log('🔍 Estrategia 2 (V2): Buscando por email:', customerEmail);
             
@@ -304,22 +360,35 @@ async function updateUserWithSubscription({ subscriptionId, stripeCustomerId, cu
                         subscriptionIdAnterior: user.subscriptionId || 'unset'
                     });
                     
-                    // Actualizar con stripeCustomerId y subscriptionId
-                    await convex.mutation(api.users.updateUserStripeInfo, {
+                    // Primero vincular stripeCustomerId si no lo tiene
+                    if (!user.stripeCustomerId) {
+                        await convex.mutation(api.users.updateUserStripeInfo, {
+                            userId: user._id,
+                            stripeCustomerId
+                        });
+                        console.log('🔗 stripeCustomerId vinculado (V2)');
+                    }
+                    
+                    // Usar saveSubscription para guardar todo correctamente
+                    const savedSubscription = await convex.mutation(api.subscriptions.saveSubscription, {
                         userId: user._id,
-                        stripeCustomerId
-                    });
-                    
-                    console.log('🔗 stripeCustomerId vinculado (V2)');
-                    
-                    // Luego actualizar la suscripción
-                    const result = await convex.mutation(api.users.updateUserSubscription, {
                         subscriptionId,
-                        stripeCustomerId
+                        stripeCustomerId,
+                        status: 'active',
+                        planType: 'pro',
+                        credits: 50000,
+                        currentPeriodEnd: null,
+                        paymentStatus: 'paid',
+                        priceId: process.env.STRIPE_PRICE_ID_MONTHLY || ''
                     });
                     
-                    console.log('✅ Estrategia 2 exitosa (V2) - Usuario vinculado y actualizado');
-                    return { success: true, user: result, strategy: 'email_link' };
+                    console.log('✅ Estrategia 2 exitosa (V2) - Usuario vinculado y suscripción guardada:', {
+                        subscriptionId,
+                        userId: user._id,
+                        savedId: savedSubscription
+                    });
+                    
+                    return { success: true, user: user, strategy: 'saveSubscription_secondary' };
                     
                 } else {
                     console.warn('⚠️ Estrategia 2 falló (V2): No se encontró usuario con email:', customerEmail);
@@ -391,12 +460,42 @@ async function handleSubscriptionChange(subscription) {
     try {
         // Solo actualizar si la suscripción está activa
         if (subscription.status === 'active') {
-            const result = await convex.mutation(api.users.updateUserSubscription, {
-                subscriptionId: subscription.id,
-                stripeCustomerId: subscription.customer
+            // Obtener información del customer de Stripe
+            const customer = await stripe.customers.retrieve(subscription.customer);
+            
+            // Buscar usuario por email
+            const users = await convex.query(api.users.getUserByEmail, { 
+                email: customer.email 
             });
-
-            console.log('✅ Suscripción actualizada exitosamente (V2):', result);
+            
+            if (users && users.length > 0) {
+                const user = users[0];
+                console.log('👤 Usuario encontrado para subscription change:', {
+                    userId: user._id,
+                    email: user.email
+                });
+                
+                // Usar saveSubscription para actualizar correctamente
+                const savedSubscription = await convex.mutation(api.subscriptions.saveSubscription, {
+                    userId: user._id,
+                    subscriptionId: subscription.id,
+                    stripeCustomerId: subscription.customer,
+                    status: subscription.status,
+                    planType: 'pro',
+                    credits: 50000,
+                    currentPeriodEnd: subscription.current_period_end,
+                    paymentStatus: 'paid',
+                    priceId: subscription.items.data[0]?.price?.id || process.env.STRIPE_PRICE_ID_MONTHLY || ''
+                });
+                
+                console.log('✅ Suscripción actualizada exitosamente via saveSubscription (V2):', {
+                    subscriptionId: subscription.id,
+                    userId: user._id,
+                    savedId: savedSubscription
+                });
+            } else {
+                console.warn('⚠️ No se encontró usuario con email:', customer.email);
+            }
         } else {
             console.log('ℹ️ Suscripción no activa, ignorando actualización (V2):', subscription.status);
         }

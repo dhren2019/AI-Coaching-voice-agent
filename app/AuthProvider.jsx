@@ -10,23 +10,40 @@ function AuthProvider({ children }) {
     const user = useUser();
     const CreateUser = useMutation(api.users.CreateUser);
     const [userData, setUserData] = useState();
+    const [isCreatingUser, setIsCreatingUser] = useState(false);
+    
     useEffect(() => {
-        console.log(user)
-        user && CreateNewUser();
-    }, [user])
+        console.log('👤 User state changed:', user?.primaryEmail || 'No user');
+        if (user && !userData && !isCreatingUser) {
+            CreateNewUser();
+        }
+    }, [user, userData, isCreatingUser])
 
     const CreateNewUser = async () => {
-        const result = await CreateUser({
-            name: user?.displayName,
-            email: user.primaryEmail
-        });
-        console.log(result);
-        setUserData(result);
+        setIsCreatingUser(true);
+        try {
+            console.log('🔄 Creating/fetching user...');
+            const result = await CreateUser({
+                name: user?.displayName,
+                email: user.primaryEmail
+            });
+            console.log('✅ User data received:', result);
+            setUserData(result);
+        } catch (error) {
+            console.error('❌ Error creating user:', error);
+        } finally {
+            setIsCreatingUser(false);
+        }
     }
 
     return (
         <div>
-            <UserContext.Provider value={{ userData, setUserData }}>
+            <UserContext.Provider value={{ 
+                userData, 
+                setUserData, 
+                isCreatingUser,
+                isUserReady: !!userData 
+            }}>
                 {children}
             </UserContext.Provider>
         </div>

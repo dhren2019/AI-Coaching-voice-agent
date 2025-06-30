@@ -1,5 +1,4 @@
 import axios from "axios"
-import OpenAI from "openai"
 import { CoachingOptions } from "./Options";
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import { ElevenLabsClient, play } from "elevenlabs";
@@ -9,52 +8,80 @@ export const getToken = async () => {
     return result.data
 }
 
-const openai = new OpenAI({
-    baseURL: "https://openrouter.ai/api/v1",
-    apiKey: process.env.NEXT_PUBLIC_AI_OPENROUTER,
-    dangerouslyAllowBrowser: true
-})
-
 export const AIModel = async (topic, coachingOption, lastTwoConversation) => {
+    try {
+        console.log('🤖 Calling AI API:', { topic, coachingOption });
+        
+        const response = await fetch('/api/ai-chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                topic,
+                coachingOption,
+                lastTwoConversation
+            })
+        });
 
-    const option = CoachingOptions.find((item) => item.name == coachingOption)
-    const PROMPT = (option.prompt).replace('{user_topic}', topic)
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-    const completion = await openai.chat.completions.create({
-        model: "openai/gpt-4o-mini",
-        messages: [
-            { role: 'assistant', content: PROMPT },
-            ...lastTwoConversation
-        ],
-    })
-    // console.log(completion.choices[0].message)
-    return completion?.choices[0]?.message;
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'AI API call failed');
+        }
+
+        console.log('✅ AI response received');
+        return data.response;
+
+    } catch (error) {
+        console.error('❌ Error calling AI API:', error);
+        throw error;
+    }
 }
 
 export const AIModelToGenerateFeedbackAndNotes = async (coachingOption, conversation) => {
+    try {
+        console.log('🤖 Calling AI Feedback API:', { coachingOption });
+        
+        const response = await fetch('/api/ai-feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                coachingOption,
+                conversation
+            })
+        });
 
-    const option = CoachingOptions.find((item) => item.name == coachingOption)
-    const PROMPT = (option.summeryPrompt);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-    const completion = await openai.chat.completions.create({
-        model: "openai/gpt-4o-mini",
-        messages: [
-            ...conversation,
-            { role: 'assistant', content: PROMPT },
-        ],
-    })
-    // console.log(completion.choices[0].message)
-    return completion?.choices[0]?.message;
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'AI Feedback API call failed');
+        }
+
+        console.log('✅ AI feedback response received');
+        return data.response;
+
+    } catch (error) {
+        console.error('❌ Error calling AI Feedback API:', error);
+        throw error;
+    }
 }
 
-
 const elevenlabs = new ElevenLabsClient({
-    apiKey: process.env.NEXT_PUBLIC_ELEVENLAB_API_KEY, // Defaults to process.env.ELEVENLABS_API_KEY
+    apiKey: process.env.NEXT_PUBLIC_ELEVENLAB_API_KEY,
 });
 
 export const ConvertTextToSpeech = async (text, expertName) => {
-
-
     const pollyClient = new PollyClient({
         region: 'us-east-1',
         credentials: {
@@ -81,5 +108,4 @@ export const ConvertTextToSpeech = async (text, expertName) => {
     } catch (e) {
         console.log(e);
     }
-
 }

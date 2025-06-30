@@ -7,25 +7,49 @@ export const CreateUser = mutation({
         email: v.string()
     },
     handler: async (ctx, args) => {
-        // if user already exist
-        const userData = await ctx.db.query('users')
-            .filter(q => q.eq(q.field('email'), args.email))
-            .collect();
-        //If not Then add new user
-        if (userData?.length == 0) {
-            const data = {
+        console.log('🔄 CreateUser called with:', { name: args.name, email: args.email });
+        
+        try {
+            // Verificar si el usuario ya existe
+            const existingUsers = await ctx.db.query('users')
+                .filter(q => q.eq(q.field('email'), args.email))
+                .collect();
+            
+            console.log('🔍 Existing users found:', existingUsers.length);
+            
+            // Si el usuario ya existe, devolverlo
+            if (existingUsers && existingUsers.length > 0) {
+                console.log('👤 Returning existing user:', existingUsers[0]._id);
+                return existingUsers[0];
+            }
+            
+            // Crear nuevo usuario sin subscriptionId (se agregará más tarde cuando se haga la suscripción)
+            const newUserData = {
                 name: args.name,
                 email: args.email,
-                credits: 5000,
-                subscriptionId: null
-            }
-            const result = await ctx.db.insert('users', {
-                ...data
-            });
-
-            return data;
+                credits: 5000
+                // NO incluir subscriptionId - se maneja como opcional en el esquema
+            };
+            
+            console.log('📝 Creating new user with data:', newUserData);
+            
+            const userId = await ctx.db.insert('users', newUserData);
+            
+            console.log('✅ New user created with ID:', userId);
+            
+            // Retornar el usuario completo con su ID
+            const newUser = {
+                _id: userId,
+                ...newUserData
+            };
+            
+            console.log('👤 Returning new user:', newUser);
+            return newUser;
+            
+        } catch (error) {
+            console.error('❌ Error in CreateUser:', error);
+            throw error;
         }
-        return userData[0]
     }
 })
 
@@ -189,7 +213,7 @@ export const removeSubscription = mutation({
 
         // Eliminar subscriptionId y resetear créditos al plan gratuito
         await ctx.db.patch(user._id, {
-            subscriptionId: null,
+            subscriptionId: undefined,
             credits: 5000 // Resetear a créditos del plan gratuito
         });
 
@@ -242,5 +266,41 @@ export const getAllUsers = query({
     args: {},
     handler: async (ctx) => {
         return await ctx.db.query("users").collect();
+    }
+});
+
+// Obtener usuario por ID (para debugging)
+export const getUserById = query({
+    args: { userId: v.id("users") },
+    handler: async (ctx, args) => {
+        return await ctx.db.get(args.userId);
+    }
+});
+
+// Función de test para verificar creación de usuarios
+export const testCreateUser = mutation({
+    args: {
+        email: v.string(),
+        name: v.string()
+    },
+    handler: async (ctx, args) => {
+        console.log('🧪 Test CreateUser function');
+        
+        try {
+            // Intentar crear usuario de prueba
+            const testUser = await ctx.db.insert('users', {
+                name: args.name,
+                email: args.email,
+                credits: 5000
+                // subscriptionId se omite intencionalmente para probar el esquema opcional
+            });
+            
+            console.log('✅ Test user created successfully:', testUser);
+            return { success: true, userId: testUser };
+            
+        } catch (error) {
+            console.error('❌ Test user creation failed:', error);
+            return { success: false, error: error.message };
+        }
     }
 });

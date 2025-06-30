@@ -91,6 +91,51 @@ export async function POST(req) {
                         savedId: savedSubscription
                     });
 
+                    // Verificar que el usuario se actualizó correctamente
+                    try {
+                        const customerEmail = session.customer_details?.email;
+                        
+                        // Intentar obtener usuario por ID directo si lo tenemos
+                        if (userId) {
+                            const userById = await convex.query(api.users.getUserById, { userId });
+                            if (userById) {
+                                logger.info('Usuario verificado por ID después de actualización', {
+                                    userId: userById._id,
+                                    email: userById.email,
+                                    subscriptionIdGuardado: userById.subscriptionId,
+                                    coincideConSubscription: userById.subscriptionId === subscription.id,
+                                    credits: userById.credits,
+                                    isMember: userById.isMember,
+                                    stripeCustomerId: userById.stripeCustomerId
+                                });
+                            }
+                        }
+                        
+                        // También verificar por email como backup
+                        if (customerEmail) {
+                            const updatedUser = await convex.query(api.users.getUserByEmail, { 
+                                email: customerEmail 
+                            });
+                            
+                            if (updatedUser && updatedUser.length > 0) {
+                                const user = updatedUser[0];
+                                logger.info('Usuario verificado por email después de actualización', {
+                                    userId: user._id,
+                                    email: user.email,
+                                    subscriptionIdGuardado: user.subscriptionId,
+                                    coincideConSubscription: user.subscriptionId === subscription.id,
+                                    credits: user.credits,
+                                    isMember: user.isMember,
+                                    stripeCustomerId: user.stripeCustomerId
+                                });
+                            }
+                        }
+                    } catch (verifyError) {
+                        logger.warn('No se pudo verificar el usuario actualizado', {
+                            error: verifyError.message
+                        });
+                    }
+
                     return NextResponse.json({
                         success: true,
                         subscriptionId: subscription.id,

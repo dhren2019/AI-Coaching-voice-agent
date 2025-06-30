@@ -1,35 +1,40 @@
 "use client";
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useContext, useEffect, useState } from 'react';
 import { UserContext } from '@/app/_context/UserContext';
-import { api } from '@/convex/_generated/api';
 import { toast } from 'sonner';
 
 export default function PaymentSuccessHandler() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const success = searchParams.get('success');
   const sessionId = searchParams.get('session_id');
-  const { userData, setUserData } = useContext(UserContext);
-  const [checked, setChecked] = useState(false);
+  const { userData } = useContext(UserContext);
+  const [processed, setProcessed] = useState(false);
 
   useEffect(() => {
-    if (success === 'true' && !checked) {
-      // Aquí puedes agregar un control para evitar la redirección repetitiva
-      api.users.updateUserSubscription({
-        sessionId,  // Necesitamos asegurar que el sessionId esté presente
-        status: 'active',
-      }).then(() => {
-        setChecked(true);
-        toast.success("¡Pago exitoso! Tu suscripción ha sido activada.");
-      }).catch((error) => {
-        toast.error("Hubo un error al activar tu suscripción.");
+    // Solo procesar si hay parámetros de éxito y no se ha procesado ya
+    if (success === 'true' && sessionId && !processed && userData?._id) {
+      console.log('🔄 PaymentSuccessHandler: Detectado pago exitoso, redirigiendo a workflow...', {
+        sessionId,
+        userId: userData._id
       });
+      
+      setProcessed(true);
+      
+      // Almacenar sessionId para el workflow
+      localStorage.setItem('checkoutSessionId', sessionId);
+      
+      // Mostrar mensaje temporal y redirigir
+      toast.success("¡Pago completado! Procesando tu suscripción...");
+      
+      // Redirigir al workflow para el procesamiento automático
+      setTimeout(() => {
+        router.push(`/workflow?success=true&userId=${userData._id}`);
+      }, 1000);
     }
-  }, [success, checked, sessionId]);
+  }, [success, sessionId, processed, userData, router]);
 
-  return (
-    <div>
-      {/* Contenido del componente de éxito */}
-    </div>
-  );
+  // Este componente no renderiza nada visible
+  return null;
 }
