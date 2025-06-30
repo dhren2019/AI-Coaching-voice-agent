@@ -92,6 +92,58 @@ function Credits() {
         }
     };
 
+    const handleTestUpgrade = async () => {
+        try {
+            setLoading(true);
+            clientLog('🧪 Iniciando proceso de upgrade de TESTING', { userEmail: user?.primaryEmail });
+            
+            const response = await fetch('/api/test-checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userEmail: user?.primaryEmail,
+                    userId: userData?._id
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('❌ Error response:', errorData);
+                throw new Error(`Error HTTP: ${response.status} - ${errorData.error || 'Unknown error'}`);
+            }
+
+            const data = await response.json();
+            clientLog('✅ Respuesta del servidor recibida', { data });
+            
+            if (data.error) {
+                clientLog('❌ Error en la respuesta del servidor', { error: data.error });
+                toast.error(`Error al crear la sesión de pago: ${data.error}`);
+                setLoading(false);
+                return;
+            }
+
+            // Redirigir a Stripe Checkout
+            if (data.url) {
+                clientLog('🔀 Redirigiendo a Stripe', { 
+                    checkoutUrl: data.url,
+                    sessionId: data.sessionId 
+                });
+                window.location.href = data.url;
+            } else {
+                throw new Error('URL de checkout no recibida');
+            }
+        } catch (error) {
+            clientLog('❌ Error en test upgrade:', { 
+                error: error.message,
+                stack: error.stack 
+            });
+            toast.error(`Error: ${error.message}`);
+            setLoading(false);
+        }
+    }
+
     const formatNumber = (num) => {
         return num?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") || "0";
     };
@@ -172,6 +224,24 @@ function Credits() {
                                         ) : (
                                             <>
                                                 <Wallet2 className="mr-2" /> Upgrade $10
+                                            </>
+                                        )}
+                                    </Button>
+                                    
+                                    {/* Botón de testing temporal */}
+                                    <Button 
+                                        className='w-full mt-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white' 
+                                        onClick={handleTestUpgrade}
+                                        disabled={loading}
+                                    > 
+                                        {loading ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Testing...
+                                            </>
+                                        ) : (
+                                            <>
+                                                🧪 Test Upgrade $10
                                             </>
                                         )}
                                     </Button>

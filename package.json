@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "convex:dev": "npx convex dev",
+    "convex:deploy": "npx convex deploy",
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhook"
   },
   "dependencies": {
     "@aws-sdk/client-polly": "^3.758.0",

@@ -13,15 +13,34 @@ export default function WorkflowSuccess() {
 
     useEffect(() => {
         const checkSubscriptionStatus = async () => {
+            const sessionId = localStorage.getItem('checkoutSessionId');
+            
+            console.log('🔄 Iniciando verificación de suscripción:', {
+                success,
+                userId,
+                sessionId: sessionId || 'No encontrado',
+                timestamp: new Date().toISOString()
+            });
+
             try {
-                // Obtener el sessionId del localStorage
-                const sessionId = localStorage.getItem('checkoutSessionId');
-                
+                console.log('🔍 Datos de sesión:', {
+                    sessionId: sessionId ? 'Encontrado' : 'No encontrado',
+                    sessionIdValue: sessionId,
+                    timestamp: new Date().toISOString()
+                });
+
                 if (!sessionId) {
-                    console.error('No se encontró sessionId');
+                    console.error('❌ No se encontró sessionId en localStorage');
+                    toast.error('Error: No se encontró la sesión de pago');
                     router.push('/dashboard');
                     return;
                 }
+
+                console.log('📤 Enviando solicitud de verificación:', {
+                    sessionId,
+                    userId,
+                    timestamp: new Date().toISOString()
+                });
 
                 // Verificar el estado de la suscripción
                 const response = await fetch('/api/verify-subscription', {
@@ -35,23 +54,76 @@ export default function WorkflowSuccess() {
                     }),
                 });
 
+                console.log('📥 Respuesta recibida:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok,
+                    timestamp: new Date().toISOString()
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Error en la respuesta del servidor:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: errorText,
+                        sessionId,
+                        timestamp: new Date().toISOString()
+                    });
+                    throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
+                }
+
                 const data = await response.json();
+                console.log('📊 Datos de respuesta completos:', {
+                    ...data,
+                    timestamp: new Date().toISOString()
+                });
 
                 if (data.success) {
+                    console.log('✅ Suscripción verificada exitosamente:', {
+                        subscriptionId: data.subscriptionId,
+                        status: data.status,
+                        userId: data.userId,
+                        stripeCustomerId: data.stripeCustomerId,
+                        sessionId: sessionId,
+                        timestamp: new Date().toISOString()
+                    });
+                    
                     toast.success('¡Suscripción activada correctamente!');
-                    // Limpiar el sessionId del localStorage
+                    
+                    console.log('🗑️ Limpiando sessionId del localStorage:', {
+                        sessionIdEliminado: sessionId,
+                        timestamp: new Date().toISOString()
+                    });
                     localStorage.removeItem('checkoutSessionId');
-                    // Redirigir al dashboard después de 3 segundos
+                    
+                    console.log('⏳ Iniciando redirección al dashboard');
                     setTimeout(() => {
                         router.push('/dashboard');
                     }, 3000);
                 } else {
+                    console.error('❌ Error en la verificación:', {
+                        error: data.error,
+                        sessionId,
+                        subscriptionId: data.subscriptionId,
+                        timestamp: new Date().toISOString()
+                    });
                     throw new Error(data.error || 'Error al verificar la suscripción');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                toast.error('Error al verificar el estado de la suscripción');
-                router.push('/dashboard');
+                console.error('❌ Error en el proceso:', {
+                    message: error.message,
+                    stack: error.stack,
+                    sessionId,
+                    timestamp: new Date().toISOString()
+                });
+                
+                toast.error(error.message || 'Error al verificar el estado de la suscripción');
+                
+                console.log('⏳ Iniciando redirección al dashboard por error');
+                setTimeout(() => {
+                    router.push('/dashboard');
+                }, 3000);
             } finally {
                 setIsProcessing(false);
             }
@@ -60,6 +132,11 @@ export default function WorkflowSuccess() {
         if (success === 'true' && userId) {
             checkSubscriptionStatus();
         } else {
+            console.log('⚠️ Parámetros inválidos:', {
+                success,
+                userId,
+                timestamp: new Date().toISOString()
+            });
             router.push('/dashboard');
         }
     }, [success, userId, router]);

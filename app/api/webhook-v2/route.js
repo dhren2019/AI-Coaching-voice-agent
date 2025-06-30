@@ -3,7 +3,28 @@ import { stripe } from '@/lib/stripe-server';
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_async function updateUserWithSubscription({ subscriptionId, stripeCustomerId, customerEmail, sessionId }) {
+    console.log('🔄 Iniciando actualización de usuario con múltiples estrategias (V2)...', {
+        subscriptionId,
+        stripeCustomerId,
+        customerEmail,
+        sessionId,
+        timestamp: new Date().toISOString()
+    });
+
+    // Log específico para el subscriptionId que vamos a guardar
+    console.log('🎯 CRÍTICO (V2) - subscriptionId a procesar:', {
+        raw: subscriptionId,
+        type: typeof subscriptionId,
+        length: subscriptionId?.length,
+        startsWith_sub: subscriptionId?.startsWith('sub_'),
+        json: JSON.stringify(subscriptionId),
+        timestamp: new Date().toISOString()
+    });
+    
+    try {
+        // Estrategia 1: Buscar por stripeCustomerId
+        console.log('🔍 Estrategia 1 (V2): Buscando por stripeCustomerId:', stripeCustomerId);_URL);
 
 const relevantEvents = new Set([
     'checkout.session.completed',
@@ -25,7 +46,7 @@ export async function POST(req) {
             process.env.STRIPE_WEBHOOK_SECRET
         );
 
-        console.log('🎉 Webhook V2 recibido:', {
+        console.log('🎉 Webhook recibido:', {
             type: event.type,
             id: event.id,
             timestamp: new Date().toISOString()
@@ -108,7 +129,7 @@ export async function POST(req) {
                         console.warn(`🤔 Evento no manejado: ${event.type}`);
                 }
             } catch (error) {
-                console.error('❌ Error procesando webhook V2:', {
+                console.error('❌ Error procesando webhook:', {
                     type: event.type,
                     eventId: event.id,
                     error: error.message,
@@ -117,13 +138,13 @@ export async function POST(req) {
                 });
                 
                 // NO fallar el webhook por errores internos - Stripe seguirá reintentando
-                console.warn('⚠️ Webhook V2 marcado como exitoso para evitar reintentos de Stripe');
+                console.warn('⚠️ Webhook marcado como exitoso para evitar reintentos de Stripe');
             }
         }
 
-        return NextResponse.json({ received: true, version: 'v2' });
+        return NextResponse.json({ received: true });
     } catch (err) {
-        console.error('❌ Error verificando webhook signature V2:', {
+        console.error('❌ Error verificando webhook signature:', {
             error: err.message,
             timestamp: new Date().toISOString()
         });
@@ -132,16 +153,6 @@ export async function POST(req) {
             { status: 400 }
         );
     }
-}
-
-// Método GET para verificar que el endpoint funciona
-export async function GET() {
-    return NextResponse.json({
-        status: 'ok',
-        message: 'Webhook V2 endpoint is working',
-        version: 'v2',
-        timestamp: new Date().toISOString()
-    });
 }
 
 async function handleCheckoutCompleted(session) {
@@ -252,28 +263,22 @@ async function handleCheckoutCompleted(session) {
     }
 }
 
-async function updateUserWithSubscription({ subscriptionId, stripeCustomerId, customerEmail, sessionId }) {
-    console.log('🔄 Iniciando actualización de usuario con múltiples estrategias (V2)...', {
-        subscriptionId,
-        stripeCustomerId,
-        customerEmail,
-        sessionId,
+// Método GET para verificar que el endpoint funciona
+export async function GET() {
+    return NextResponse.json({
+        status: 'ok',
+        message: 'Webhook V2 endpoint is working',
+        version: 'v2',
         timestamp: new Date().toISOString()
     });
+}
 
-    // Log específico para el subscriptionId que vamos a guardar
-    console.log('🎯 CRÍTICO (V2) - subscriptionId a procesar:', {
-        raw: subscriptionId,
-        type: typeof subscriptionId,
-        length: subscriptionId?.length,
-        startsWith_sub: subscriptionId?.startsWith('sub_'),
-        json: JSON.stringify(subscriptionId),
-        timestamp: new Date().toISOString()
-    });
+async function updateUserWithSubscription({ subscriptionId, stripeCustomerId, customerEmail, sessionId }) {
+    console.log('� Iniciando actualización de usuario con múltiples estrategias...');
     
     try {
         // Estrategia 1: Buscar por stripeCustomerId
-        console.log('🔍 Estrategia 1 (V2): Buscando por stripeCustomerId:', stripeCustomerId);
+        console.log('🔍 Estrategia 1: Buscando por stripeCustomerId:', stripeCustomerId);
         
         try {
             const result = await convex.mutation(api.users.updateUserSubscription, {
@@ -281,27 +286,26 @@ async function updateUserWithSubscription({ subscriptionId, stripeCustomerId, cu
                 stripeCustomerId
             });
             
-            console.log('✅ Estrategia 1 exitosa (V2) - Usuario encontrado por stripeCustomerId');
+            console.log('✅ Estrategia 1 exitosa - Usuario encontrado por stripeCustomerId');
             return { success: true, user: result, strategy: 'stripeCustomerId' };
             
         } catch (error) {
-            console.warn('⚠️ Estrategia 1 falló (V2):', error.message);
+            console.warn('⚠️ Estrategia 1 falló:', error.message);
         }
 
         // Estrategia 2: Buscar por email y actualizar stripeCustomerId
         if (customerEmail) {
-            console.log('🔍 Estrategia 2 (V2): Buscando por email:', customerEmail);
+            console.log('🔍 Estrategia 2: Buscando por email:', customerEmail);
             
             try {
                 const users = await convex.query(api.users.getUserByEmail, { email: customerEmail });
                 
                 if (users && users.length > 0) {
                     const user = users[0];
-                    console.log('👤 Usuario encontrado por email (V2):', {
+                    console.log('👤 Usuario encontrado por email:', {
                         userId: user._id,
                         email: user.email,
-                        creditsActuales: user.credits,
-                        subscriptionIdAnterior: user.subscriptionId || 'unset'
+                        creditsActuales: user.credits
                     });
                     
                     // Actualizar con stripeCustomerId y subscriptionId
@@ -310,28 +314,26 @@ async function updateUserWithSubscription({ subscriptionId, stripeCustomerId, cu
                         stripeCustomerId
                     });
                     
-                    console.log('🔗 stripeCustomerId vinculado (V2)');
-                    
                     // Luego actualizar la suscripción
                     const result = await convex.mutation(api.users.updateUserSubscription, {
                         subscriptionId,
                         stripeCustomerId
                     });
                     
-                    console.log('✅ Estrategia 2 exitosa (V2) - Usuario vinculado y actualizado');
+                    console.log('✅ Estrategia 2 exitosa - Usuario vinculado y actualizado');
                     return { success: true, user: result, strategy: 'email_link' };
                     
                 } else {
-                    console.warn('⚠️ Estrategia 2 falló (V2): No se encontró usuario con email:', customerEmail);
+                    console.warn('⚠️ Estrategia 2 falló: No se encontró usuario con email:', customerEmail);
                 }
                 
             } catch (error) {
-                console.warn('⚠️ Estrategia 2 falló (V2):', error.message);
+                console.warn('⚠️ Estrategia 2 falló:', error.message);
             }
         }
 
         // Si todas las estrategias fallan
-        console.error('❌ Todas las estrategias fallaron (V2). Usuario no encontrado:', {
+        console.error('❌ Todas las estrategias fallaron. Usuario no encontrado:', {
             stripeCustomerId,
             customerEmail,
             subscriptionId,
@@ -344,14 +346,14 @@ async function updateUserWithSubscription({ subscriptionId, stripeCustomerId, cu
         };
 
     } catch (error) {
-        console.error('❌ Error en updateUserWithSubscription (V2):', error);
+        console.error('❌ Error en updateUserWithSubscription:', error);
         return { success: false, error: error.message };
     }
 }
 
 async function savePaymentRecord({ sessionId, stripeCustomerId, subscriptionId, amount, status, metadata }) {
     try {
-        console.log('💾 Guardando registro de pago (V2):', {
+        console.log('💾 Guardando registro de pago:', {
             sessionId,
             stripeCustomerId,
             subscriptionId,
@@ -368,11 +370,11 @@ async function savePaymentRecord({ sessionId, stripeCustomerId, subscriptionId, 
             metadata
         });
 
-        console.log('✅ Registro de pago guardado exitosamente (V2)');
+        console.log('✅ Registro de pago guardado exitosamente');
         return true;
 
     } catch (error) {
-        console.error('❌ Error guardando registro de pago (V2):', {
+        console.error('❌ Error guardando registro de pago:', {
             error: error.message,
             sessionId,
             stripeCustomerId
@@ -382,7 +384,7 @@ async function savePaymentRecord({ sessionId, stripeCustomerId, subscriptionId, 
 }
 
 async function handleSubscriptionChange(subscription) {
-    console.log('📝 Procesando subscription change (V2):', {
+    console.log('📝 Procesando subscription change:', {
         subscriptionId: subscription.id,
         status: subscription.status,
         customerId: subscription.customer
@@ -396,13 +398,13 @@ async function handleSubscriptionChange(subscription) {
                 stripeCustomerId: subscription.customer
             });
 
-            console.log('✅ Suscripción actualizada exitosamente (V2):', result);
+            console.log('✅ Suscripción actualizada exitosamente:', result);
         } else {
-            console.log('ℹ️ Suscripción no activa, ignorando actualización (V2):', subscription.status);
+            console.log('ℹ️ Suscripción no activa, ignorando actualización:', subscription.status);
         }
         
     } catch (error) {
-        console.error('❌ Error en handleSubscriptionChange (V2):', {
+        console.error('❌ Error en handleSubscriptionChange:', {
             error: error.message,
             subscriptionId: subscription.id
         });
@@ -411,7 +413,7 @@ async function handleSubscriptionChange(subscription) {
 }
 
 async function handleSubscriptionDeleted(subscription) {
-    console.log('❌ Procesando subscription deleted (V2):', {
+    console.log('❌ Procesando subscription deleted:', {
         subscriptionId: subscription.id,
         customerId: subscription.customer
     });
@@ -421,10 +423,10 @@ async function handleSubscriptionDeleted(subscription) {
             stripeCustomerId: subscription.customer
         });
 
-        console.log('✅ Suscripción cancelada exitosamente (V2)');
+        console.log('✅ Suscripción cancelada exitosamente');
         
     } catch (error) {
-        console.error('❌ Error en handleSubscriptionDeleted (V2):', {
+        console.error('❌ Error en handleSubscriptionDeleted:', {
             error: error.message,
             subscriptionId: subscription.id
         });
